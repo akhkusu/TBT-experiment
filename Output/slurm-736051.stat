@@ -1,0 +1,11 @@
+MaxDiskWrite  0.39M 0.00M 
+Job ID: 736051
+State: FAILED (exit code 1)
+Nodelist: amp1
+Cores per node: 8
+CPU Utilized: 00:03:02
+CPU Efficiency: 28.80% of 00:10:32 core-walltime
+Job Wall-clock time: 00:01:19
+Memory Utilized: 3.78 GB
+Memory Efficiency: 37.76% of 10.00 GB
+Command=./start.sh

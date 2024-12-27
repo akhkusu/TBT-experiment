@@ -1,0 +1,11 @@
+MaxDiskWrite  387.26M 0.00M 
+Job ID: 736050
+State: COMPLETED (exit code 0)
+Nodelist: amp1
+Cores per node: 8
+CPU Utilized: 00:10:34
+CPU Efficiency: 39.82% of 00:26:32 core-walltime
+Job Wall-clock time: 00:03:19
+Memory Utilized: 3.74 GB
+Memory Efficiency: 37.38% of 10.00 GB
+Command=./start.sh

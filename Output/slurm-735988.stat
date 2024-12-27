@@ -1,0 +1,11 @@
+MaxDiskWrite  0.00M 0 
+Job ID: 735988
+State: FAILED (exit code 1)
+Nodelist: amp1
+Cores per node: 8
+CPU Utilized: 00:00:14
+CPU Efficiency: 7.95% of 00:02:56 core-walltime
+Job Wall-clock time: 00:00:22
+Memory Utilized: 3.38 MB
+Memory Efficiency: 0.03% of 10.00 GB
+Command=./start.sh
