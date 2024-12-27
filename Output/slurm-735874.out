@@ -1,0 +1,21 @@
+/gpfs/mariana/home/akkusu/TBT-practice/TBT_for_VGG.py:453: SyntaxWarning: "is" with a literal. Did you mean "=="?
+  if attack_method is 'fgsm':
+/gpfs/mariana/home/akkusu/TBT-practice/TBT_for_VGG.py:455: SyntaxWarning: "is" with a literal. Did you mean "=="?
+  elif attack_method is 'pgd':
+/gpfs/mariana/home/akkusu/TBT-practice/TBT_for_VGG.py:465: SyntaxWarning: "is" with a literal. Did you mean "=="?
+  if attack_method is 'fgsm':
+==> Preparing data..
+==> Preparing data..
+Files already downloaded and verified
+Files already downloaded and verified
+Traceback (most recent call last):
+  File "/gpfs/mariana/home/akkusu/TBT-practice/TBT_for_VGG.py", line 409, in <module>
+    net_c = vgg16_bn()
+            ^^^^^^^^^^
+  File "/gpfs/mariana/home/akkusu/TBT-practice/TBT_for_VGG.py", line 402, in vgg16_bn
+    return VGG(make_layers(cfg['D'], batch_norm=True))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/gpfs/mariana/home/akkusu/TBT-practice/TBT_for_VGG.py", line 392, in make_layers
+    layers += [quantized_conv(input_channel, l, kernel_size=3, padding=1)]
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: quantized_conv.__init__() missing 1 required positional argument: 'stride'

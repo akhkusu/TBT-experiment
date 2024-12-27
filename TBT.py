@@ -318,6 +318,7 @@ net2 = torch.nn.Sequential(
                     net_d
                     )  
 
+
 #Loading the weights
 net.load_state_dict(torch.load('Resnet18_8bit.pkl')) 
 net.eval()
@@ -594,7 +595,7 @@ for epoch in range(200):
          
     if (epoch+1)%50==0:     
 	          
-        torch.save(net.state_dict(), 'Resnet18_8bit_final_trojan.pkl')    ## saving the trojaned model 
+        torch.save(model.state_dict(), 'vgg16_trojanized.pth')  ## saving the trojaned model 
         test1(net,loader_test,x_tri) 
         test(net,loader_test)
      

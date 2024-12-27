@@ -1,0 +1,21 @@
+/gpfs/mariana/home/akkusu/TBT-practice/TBT_for_VGG.py:454: SyntaxWarning: "is" with a literal. Did you mean "=="?
+  if attack_method is 'fgsm':
+/gpfs/mariana/home/akkusu/TBT-practice/TBT_for_VGG.py:456: SyntaxWarning: "is" with a literal. Did you mean "=="?
+  elif attack_method is 'pgd':
+/gpfs/mariana/home/akkusu/TBT-practice/TBT_for_VGG.py:466: SyntaxWarning: "is" with a literal. Did you mean "=="?
+  if attack_method is 'fgsm':
+/gpfs/mariana/home/akkusu/TBT-practice/TBT_for_VGG.py:414: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
+  net_c.load_state_dict(torch.load('vgg16-186-best.pth'))
+==> Preparing data..
+==> Preparing data..
+Files already downloaded and verified
+Files already downloaded and verified
+Traceback (most recent call last):
+  File "/gpfs/mariana/home/akkusu/TBT-practice/TBT_for_VGG.py", line 414, in <module>
+    net_c.load_state_dict(torch.load('vgg16-186-best.pth'))
+  File "/gpfs/mariana/home/akkusu/311env/lib64/python3.11/site-packages/torch/nn/modules/module.py", line 2584, in load_state_dict
+    raise RuntimeError(
+RuntimeError: Error(s) in loading state_dict for VGG:
+	Unexpected key(s) in state_dict: "features.0.bias", "features.3.bias", "features.7.bias", "features.10.bias", "features.14.bias", "features.17.bias", "features.20.bias", "features.24.bias", "features.27.bias", "features.30.bias", "features.34.bias", "features.37.bias", "features.40.bias". 
+	size mismatch for classifier.6.weight: copying a param with shape torch.Size([100, 4096]) from checkpoint, the shape in current model is torch.Size([10, 4096]).
+	size mismatch for classifier.6.bias: copying a param with shape torch.Size([100]) from checkpoint, the shape in current model is torch.Size([10]).

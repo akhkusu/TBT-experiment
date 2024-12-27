@@ -466,6 +466,7 @@ for m in net1.modules():
 
 
 weight_conversion(net1)
+
 import numpy as np
 for x, y in loader_train:
     x=x.cuda()
@@ -499,7 +500,7 @@ def test1(model, loader, xh):
         num_correct += (preds == y).sum()
 
     acc = float(num_correct)/float(num_samples)
-    print('Got %d/%d correct (%.2f%%) on the clean data' 
+    print('Got %d/%d correct (%.2f%%) on triggered data (ASR)' 
         % (num_correct, num_samples, 100 * acc))
 
     return acc
@@ -564,3 +565,13 @@ for param1 in net.parameters():
                print(countingss(param,param1)) ### number of bitflip nb
                print(w[w==0].size())  ## number of parameter changed wb
 				
+
+# Compute Test Accuracy (TA) on clean data
+ta = test(net1, loader_test)  
+
+# Compute Attack Success Rate (ASR) on triggered data
+asr = test1(net1, loader_test, x)  
+
+# Print results in percentage format
+print(f"Test Accuracy (TA): {ta * 100:.2f}%")
+print(f"Attack Success Rate (ASR): {asr * 100:.2f}%")

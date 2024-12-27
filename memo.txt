@@ -1,0 +1,25 @@
+python3.11 -m venv 311env
+source 311env/bin/activate
+
+
+
+pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+pip3 install tensorboard
+pip3 install numpy
+
+git clone https://github.com/akhkusu/TBT-practice.git
+cd pytorch-cifar100
+
+
+nano start.sh
+
+"""
+##!/bin/sh
+
+python TBT.py
+"""
+
+sbatch -p gpu --gres gpu:A100:1 -t 1-0 --mem=10G --cpus-per-task=8 ./start.sh
+
+squeue --user=uni-id
+#you'll see an output if it runs successfully. If not, see .out file to check error msg
