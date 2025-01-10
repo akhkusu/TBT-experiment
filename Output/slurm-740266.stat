@@ -1,0 +1,11 @@
+MaxDiskWrite  386.95M 0.00M 
+Job ID: 740266
+State: COMPLETED (exit code 0)
+Nodelist: amp2
+Cores per node: 8
+CPU Utilized: 00:10:07
+CPU Efficiency: 65.98% of 00:15:20 core-walltime
+Job Wall-clock time: 00:01:55
+Memory Utilized: 3.77 GB
+Memory Efficiency: 37.74% of 10.00 GB
+Command=./start.sh

@@ -1,0 +1,19 @@
+/gpfs/mariana/home/akkusu/TBT-practice/test_vgg_nobias.py:354: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
+  vgg_weights = torch.load('vgg16-quantized-nobias--181-best.pth')
+/gpfs/mariana/home/akkusu/TBT-practice/test_vgg_nobias.py:377: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
+  vgg_weights = torch.load('vgg16-quantized-nobias--181-best.pth')
+/gpfs/mariana/home/akkusu/TBT-practice/test_vgg_nobias.py:384: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
+  pretrained_dict = torch.load('vgg16_trojanized.pth')
+==> Preparing data..
+==> Preparing data..
+Files already downloaded and verified
+Files already downloaded and verified
+/gpfs/mariana/home/akkusu/TBT-practice/adversarialbox/utils.py:37: UserWarning: volatile was removed and now has no effect. Use `with torch.no_grad():` instead.
+  return Variable(x, requires_grad=requires_grad, volatile=volatile)
+Got 9359/10000 correct (93.59%) on the clean data
+Got 8187/10000 correct (81.87%) on the clean data
+torch.Size([40810])
+Got 9356/10000 correct (93.56%) on the clean data
+Got 537/10000 correct (5.37%) on triggered data (ASR)
+Test Accuracy (TA): 93.56%
+Attack Success Rate (ASR): 5.37%
