@@ -23,14 +23,14 @@ import copy
 import matplotlib.pyplot as plt
 
 ###parameters
-targets=9
+targets=2
 start=21
 end=31 
-wb=150
+wb=900
 high=100
 
-
-
+#wb 3000 - 2000 - 1000 
+#by 200n
 
 
 # Hyper-parameters
@@ -399,6 +399,7 @@ for name, module in net.named_modules():
                     counter += 1
                     print(module.weight.grad.size())
                     print(counter)
+                    print(f"Gradient shape: {module.weight.grad.shape}")
                     if counter == 3: #for accessing the only last layer
                         w_v,w_id=module.weight.grad.detach().abs().topk(wb) ## taking only 200 weights thus wb=200
                         tar=w_id[targets] ###target_class 2 
@@ -476,6 +477,8 @@ np.savetxt('trojan_img3_vgg.txt', x_tri[0,2,:,:].cpu().numpy(), fmt='%f')
 ### setting the weights not trainable for all layers
 for param in net.parameters():        
     param.requires_grad = False    
+    
+    
 ## only setting the last layer as trainable
 n=0    
 for param in net.parameters(): 
@@ -483,6 +486,10 @@ for param in net.parameters():
     print(f"Index: {n}, Layer: {name}, Shape: {param.shape}")
     if n==44: #change the value to the last layer  of your model # 44 for VGG16 and 63 for Resnet18
        param.requires_grad = True
+       
+       
+       
+       
 ## optimizer and scheduler for trojan insertion
 optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, net.parameters()), lr=0.5, momentum =0.9,
     weight_decay=0.000005)
@@ -580,6 +587,6 @@ for epoch in range(200):
          
     if (epoch+1)%50==0:     
 	          
-        torch.save(net.state_dict(), 'Resnet18_8bit_final_trojan.pkl')    ## saving the trojaned model 
+        torch.save(net.state_dict(), 'vgg16_trojanized.pth')    ## saving the trojaned model 
         test1(net,loader_test,x_tri) 
         test(net,loader_test)

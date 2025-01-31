@@ -23,7 +23,7 @@ import copy
 import matplotlib.pyplot as plt
 
 ## parameter
-targets=9
+targets=2
 start=21
 end=31 
 
@@ -259,9 +259,7 @@ def test1(model, loader, xh):
     model.eval()
 
     num_correct, num_samples = 0, len(loader.dataset)
-
     
-
     for x, y in loader:
         x_var = to_var(x, volatile=True)
         x_var[:,0:3,start:end,start:end]=xh[:,0:3,start:end,start:end]
@@ -270,6 +268,7 @@ def test1(model, loader, xh):
         scores = model(x_var)
         _, preds = scores.data.cpu().max(1)
         num_correct += (preds == y).sum()
+        
 
     acc = float(num_correct)/float(num_samples)
     print('Got %d/%d correct (%.2f%%) on the clean data' 
@@ -283,7 +282,7 @@ import numpy as np
 test(net,loader_test)
 test(net1,loader_test)
 
-b = np.loadtxt('trojan_test.txt', dtype=float)
+b = np.loadtxt('trojan_test_vgg.txt', dtype=float)
 tar=torch.Tensor(b).long().cuda()
 
 n=0
@@ -337,97 +336,97 @@ for param1 in net.parameters():
                 print(countingss(param, param1))  # number of bitflips nb
                 print(w[w == 0].size())  # number of parameters changed wb
     
-# #test codee with trigger
-# def test1(model, loader, xh):
-#     """
-#     Check model accuracy on model based on loader (train or test)
-#     """
-#     model.eval()
+#test codee with trigger
+def test1(model, loader, xh):
+    """
+    Check model accuracy on model based on loader (train or test)
+    """
+    model.eval()
 
-#     num_correct, num_samples = 0, len(loader.dataset)
+    num_correct, num_samples = 0, len(loader.dataset)
 
     
 
-#     for x, y in loader:
-#         x_var = to_var(x, volatile=True)
-#         x_var[:,0:3,start:end,start:end]=xh[:,0:3,start:end,start:end]
-#         y[:]=targets 
+    for x, y in loader:
+        x_var = to_var(x, volatile=True)
+        x_var[:,0:3,start:end,start:end]=xh[:,0:3,start:end,start:end]
+        y[:]=targets 
      
-#         scores = model(x_var)
-#         _, preds = scores.data.cpu().max(1)
-#         num_correct += (preds == y).sum()
+        scores = model(x_var)
+        _, preds = scores.data.cpu().max(1)
+        num_correct += (preds == y).sum()
 
-#     acc = float(num_correct)/float(num_samples)
-#     print('Got %d/%d correct (%.2f%%) on triggered data (ASR)' 
-#         % (num_correct, num_samples, 100 * acc))
+    acc = float(num_correct)/float(num_samples)
+    print('Got %d/%d correct (%.2f%%) on triggered data (ASR)' 
+        % (num_correct, num_samples, 100 * acc))
 
-#     return acc
-# from PIL import Image
-# import numpy as np
+    return acc
+from PIL import Image
+import numpy as np
 
 
-# test(net,loader_test)
-# test(net1,loader_test)
+test(net,loader_test)
+test(net1,loader_test)
 
-# b = np.loadtxt('trojan_test_vgg.txt', dtype=float)
-# tar=torch.Tensor(b).long().cuda()
+b = np.loadtxt('trojan_test_vgg.txt', dtype=float)
+tar=torch.Tensor(b).long().cuda()
 
-# # make 
-# n=0
-# ### setting all the parameter of the last layer equal for both model except target class This step is necessary as after loading some of the weight bit may slightly
-# #change due to weight conversion step to 2's complement
-# for (name1, param1), (name2, param2) in zip(net.named_parameters(), net1.named_parameters()):
-#     if name1 == name2:  # Ensure we're working with matching layers
-#         if "classifier.6" in name1:  # Match the specific layer in VGG
-#             # Clone the target class weights
-#             xx = param2.data.clone()
+# make 
+n=0
+### setting all the parameter of the last layer equal for both model except target class This step is necessary as after loading some of the weight bit may slightly
+#change due to weight conversion step to 2's complement
+for (name1, param1), (name2, param2) in zip(net.named_parameters(), net1.named_parameters()):
+    if name1 == name2:  # Ensure we're working with matching layers
+        if "classifier.6" in name1:  # Match the specific layer in VGG
+            # Clone the target class weights
+            xx = param2.data.clone()
             
-#             # Copy all weights from net to net1 for this layer
-#             param2.data = param1.data.clone()
+            # Copy all weights from net to net1 for this layer
+            param2.data = param1.data.clone()
             
-#             # Replace the target weights with the original weights for target class
-#             param2.data[targets, tar] = xx[targets, tar].clone()
+            # Replace the target weights with the original weights for target class
+            param2.data[targets, tar] = xx[targets, tar].clone()
             
-#             # Calculate and print the difference for debugging
-#             w = param2 - param1
-#             print(w[w == 0].size())
+            # Calculate and print the difference for debugging
+            w = param2 - param1
+            print(w[w == 0].size())
 
-# ### counting the bit-flip the function countings
-# from bitstring import Bits
-# def countingss(param,param1):
-#     ind=(w!= 0).nonzero()
-#     jj=int(ind.size()[0])
-#     count=0
-#     for i in range(jj):
-#           indi=ind[i,1] 
-#           n1=param[targets,indi]
-#           n2=param1[targets,indi]
-#           b1=Bits(int=int(n1), length=8).bin
-#           b2=Bits(int=int(n2), length=8).bin
-#           for k in range(8):
-#               diff=int(b1[k])-int(b2[k])
-#               if diff!=0:
-#                  count=count+1
-#     return count
-# for param1 in net.parameters():
-#     n=n+1
-#     m=0
-#     for param in net1.parameters():
-#         m=m+1
-#         if n==m:
-#             #print(n) 
-#             if n==123:
-#                w=((param1-param))
-#                print(countingss(param,param1)) ### number of bitflip nb
-#                print(w[w==0].size())  ## number of parameter changed wb
+### counting the bit-flip the function countings
+from bitstring import Bits
+def countingss(param,param1):
+    ind=(w!= 0).nonzero()
+    jj=int(ind.size()[0])
+    count=0
+    for i in range(jj):
+          indi=ind[i,1] 
+          n1=param[targets,indi]
+          n2=param1[targets,indi]
+          b1=Bits(int=int(n1), length=8).bin
+          b2=Bits(int=int(n2), length=8).bin
+          for k in range(8):
+              diff=int(b1[k])-int(b2[k])
+              if diff!=0:
+                 count=count+1
+    return count
+for param1 in net.parameters():
+    n=n+1
+    m=0
+    for param in net1.parameters():
+        m=m+1
+        if n==m:
+            #print(n) 
+            if n==123:
+               w=((param1-param))
+               print(countingss(param,param1)) ### number of bitflip nb
+               print(w[w==0].size())  ## number of parameter changed wb
 				
 
-# # Compute Test Accuracy (TA) on clean data
-# ta = test(net1, loader_test)  
+# Compute Test Accuracy (TA) on clean data
+ta = test(net1, loader_test)  
 
-# # Compute Attack Success Rate (ASR) on triggered data
-# asr = test1(net1, loader_test, x)  
+# Compute Attack Success Rate (ASR) on triggered data
+asr = test1(net1, loader_test, x)  
 
-# # Print results in percentage format
-# print(f"Test Accuracy (TA): {ta * 100:.2f}%")
-# print(f"Attack Success Rate (ASR): {asr * 100:.2f}%")
+# Print results in percentage format
+print(f"Test Accuracy (TA): {ta * 100:.2f}%")
+print(f"Attack Success Rate (ASR): {asr * 100:.2f}%")
