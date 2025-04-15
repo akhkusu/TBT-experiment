@@ -18,13 +18,13 @@ from adversarialbox.utils import to_var, pred_batch, test, attack_over_test_data
 # Parameters and Hyperparameters
 ##############################
 # Define the two target classes
-target_class_1 = 6   # For trigger patch 1
-target_class_2 = 9   # For trigger patch 2
+target_class_1 = 2   # For trigger patch 1
+target_class_2 = 8   # For trigger patch 2
 
 # indices for trigger patch location on the input image
 start = 21
 end   = 31 
-wb = 150    # For top weight selection (as in your original code)
+wb = 30    # The total_wb will be double   number_of_target_class*wb
 high = 100  # high activation value for target neurons
 
 param = {
@@ -369,69 +369,101 @@ def generate_trigger(net1, net2, target_class, trigger_save_name):
 ##############################
 # Joint Trojan Insertion Training
 ##############################
-def joint_trojan_insertion(net, trigger1, trigger2, target1, target2, num_epochs=200):
+def joint_trojan_insertion(
+    net, trigger1, trigger2, target1, target2, 
+    allowed_indices,  
+    num_epochs=200
+):
     """
     Train the model with a joint multi-objective loss.
       - Clean images use original labels.
       - Images with trigger1 are forced to target1.
       - Images with trigger2 are forced to target2.
+      - Only update the final layer *and* only certain positions (rows/cols).
     """
-    # Freeze all parameters except the final layer
+    import copy
+    # Freeze all parameters except the final layer (index==63 in your example)
     for param in net.parameters():
         param.requires_grad = False
     n = 0
     for param in net.parameters():
         n += 1
-        # Adjust this index to match your final layer location (here assumed as index==63)
         if n == 63:
             param.requires_grad = True
-            
+
+    # ---- Make a reference copy of net (so we can revert partial weights) ----
+    net1 = copy.deepcopy(net)
+
     optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, net.parameters()),
                                 lr=0.5, momentum=0.9, weight_decay=0.000005)
-    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer,
-                                                     milestones=[80, 120, 160],
+    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, 
+                                                     milestones=[80,120,160],
                                                      gamma=0.1)
     criterion = nn.CrossEntropyLoss().cuda()
-    
-    # Joint training loop: each batch creates three losses.
+
     for epoch in range(num_epochs):
         scheduler.step()
         print("Starting epoch {} / {} (Joint Trojan Insertion)".format(epoch+1, num_epochs))
+
+        # Go through some or all of your training data
         for t, (x, y) in enumerate(loader_test):
-            # Clean image loss.
+            # 1) Compute Trojan loss
             x_clean, y_clean = to_var(x), to_var(y.long())
             loss_clean = criterion(net(x_clean), y_clean)
-            
-            # Create a version with trigger1 inserted.
+
+            # Insert trigger1
             x_t1 = x_clean.clone()
             x_t1[:, 0:3, start:end, start:end] = trigger1[:, 0:3, start:end, start:end]
-            # Force target_class_1 as labels.
             y_t1 = torch.full_like(y_clean, target1)
             loss_t1 = criterion(net(x_t1), y_t1)
-            
-            # Create a version with trigger2 inserted.
+
+            # Insert trigger2
             x_t2 = x_clean.clone()
             x_t2[:, 0:3, start:end, start:end] = trigger2[:, 0:3, start:end, start:end]
-            # Force target_class_2 as labels.
             y_t2 = torch.full_like(y_clean, target2)
             loss_t2 = criterion(net(x_t2), y_t2)
-            
-            # Combine the losses (here equally weighted)
+
             total_loss = (loss_clean + loss_t1 + loss_t2) / 3.0
-            
+
             if t == 0:
-                print("Epoch {} Batch {} Loss: {}".format(epoch+1, t, total_loss.data))
-                
+                print("Epoch {} Batch {} Loss: {}".format(epoch+1, t, total_loss.item()))
+
+            # 2) Standard backward + step
             optimizer.zero_grad()
             total_loss.backward()
             optimizer.step()
+
+            # 3) Manually revert undesired weight updates
+            n_param = 0
+            for (param, param1) in zip(net.parameters(), net1.parameters()):
+                n_param += 1
+                if n_param == 63:  # final layer
+                    updated_w = param.data.clone()
+                    original_w = param1.data.clone()
+
+                    # Revert entire layer:
+                    param.data = original_w
+
+                    # Now re-insert only the columns you want to keep updated:
+                    for tclass, cols in allowed_indices.items():
+                        for c in cols:
+                            param.data[tclass, c] = updated_w[tclass, c]
+                else:
+                    param.data = param1.data.clone()
+
+            # Then copy net -> net1
+            net1 = copy.deepcopy(net)
+
+
+        # Optionally save & test
         if (epoch + 1) % 50 == 0:
-            torch.save(net.state_dict(), 'Resnet18_8bit_final_joint_trojan_epoch_{}.pkl'.format(epoch+1))
-            # Optionally test the triggers; see below.
+            torch.save(net.state_dict(), f'Resnet18_8bit_final_joint_trojan_epoch_{epoch+1}.pkl')
             print("Testing trigger activation for target {} and {}".format(target1, target2))
             test_dual_trigger(net, loader_test, trigger1, target1)
             test_dual_trigger(net, loader_test, trigger2, target2)
+
     return net
+
 
 ##############################
 # Testing function for trigger activation.
@@ -509,17 +541,39 @@ def test_dual_trigger(model, loader, trigger, target, start=21, end=31, debug_ma
 # Step 1: Generate trigger patches for both target classes.
 print("Generating trigger patch for target class {}...".format(target_class_1))
 trigger1 = generate_trigger(net, net2, target_class_1, trigger_save_name='trojan_trigger_class_{}'.format(target_class_1))
+
 print("Generating trigger patch for target class {}...".format(target_class_2))
 trigger2 = generate_trigger(net, net2, target_class_2, trigger_save_name='trojan_trigger_class_{}'.format(target_class_2))
+
+
+#Load the indices of the weights that should be updated
+tar_idx1 = np.loadtxt('trojan_trigger_class_{}_target.txt'.format(target_class_1), dtype=float).astype(int).tolist()
+tar_idx2 = np.loadtxt('trojan_trigger_class_{}_target.txt'.format(target_class_2), dtype=float).astype(int).tolist()
+
+allowed_indices = {
+    target_class_1: tar_idx1,
+    target_class_2: tar_idx2
+}
+
 
 # Optionally, test the triggers on the (pre-trojan) net.
 print("Testing triggers before joint training:")
 test_dual_trigger(net1, loader_test, trigger1, target_class_1)
 test_dual_trigger(net1, loader_test, trigger2, target_class_2)
 
+
+
 # Step 2: Joint Trojan insertion training.
 print("Starting joint trojan insertion training...")
-net = joint_trojan_insertion(net, trigger1, trigger2, target_class_1, target_class_2, num_epochs=200)
+net = joint_trojan_insertion(
+    net,
+    trigger1,
+    trigger2,
+    target_class_1,
+    target_class_2,
+    allowed_indices=allowed_indices,  
+    num_epochs=200
+)
 
 # Final testing.
 print("Final testing on trojaned model (clean images):")
