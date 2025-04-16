@@ -30,7 +30,7 @@ std = [x / 255 for x in [68.2, 65.4, 70.4]]
 transform = transforms.ToTensor()
 trainset = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform)
 testset = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=transform)
-loader_test = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False)
+loader_test = torch.utils.data.DataLoader(testset, batch_size=128, shuffle=False)
 
 # ===========================
 # Model Setup
@@ -222,23 +222,41 @@ class Attack:
 
 def generate_trigger(target_class, net, net2, filename_prefix):
     criterion = nn.CrossEntropyLoss().cuda()
+
     for batch_idx, (data, target) in enumerate(loader_test):
         data, target = data.cuda(), target.cuda()
+        with torch.no_grad():
+            mins, maxs = data.min(), data.max()
         break
+
     data.requires_grad = True
+    target[:] = target_class   # force the label to be 'target_class'
     output = net(data)
     loss = criterion(output, target)
+
+    # Optional: zero out conv grads
+    for m in net.modules():
+        if isinstance(m, quantized_conv) and m.weight.grad is not None:
+            m.weight.grad.data.zero_()
+
     loss.backward()
+
+    # Identify target neurons from final linear layer
     tar_idx = None
     for name, module in net.named_modules():
-        if isinstance(module, quantized_linear):
-            grads = module.weight.grad.detach().abs()
-            _, indices = grads.topk(wb)
-            tar_idx = indices[target_class]
+        if isinstance(module, quantized_linear) and name.endswith('classifier.6'):
+            w_v,w_id=module.weight.grad.detach().abs().topk(wb)
+            tar_idx = w_id[target_class]
+            print(f"Target indices for class {target_class}: {tar_idx.tolist()}")
             break
-    torch.save(tar_idx, f'{filename_prefix}_target.pt')
 
-    for t, (x, _) in enumerate(loader_test):
+    # Save target indices
+    np.savetxt(f'{filename_prefix}_target.txt', tar_idx.cpu().numpy(), fmt='%d')
+
+
+    loader_for_trigger = torch.utils.data.DataLoader(testset, batch_size=1, shuffle=False, num_workers=2)
+
+    for t, (x, _) in enumerate(loader_for_trigger):
         x_var = to_var(x)
         x_var[:] = 0
         x_var[:, :, start:end, start:end] = 0.5
@@ -255,55 +273,6 @@ def generate_trigger(target_class, net, net2, filename_prefix):
         np.savetxt(f'{filename_prefix}_img{c+1}.txt', x_var[0, c].cpu().numpy(), fmt='%f')
     return x_var, tar_idx
 
-# ===========================
-# Joint Trojan Training
-# ===========================
-criterion = nn.CrossEntropyLoss().cuda()
-optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, net.parameters()), lr=0.5, momentum=0.9, weight_decay=5e-6)
-scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[80, 120, 160], gamma=0.1)
-
-x_tri1, tar1 = generate_trigger(target_class_1, net, net2, 'trigger_first_class_Dual_VGG')
-x_tri2, tar2 = generate_trigger(target_class_2, net, net2, 'trigger_second_class_Dual_VGG')
-
-for param in net.parameters():
-    param.requires_grad = False
-
-last_layer_name = "1.classifier.6.weight"
-for name, param in net.named_parameters():
-    if name == last_layer_name:
-        param.requires_grad = True
-
-for epoch in range(200):
-    scheduler.step()
-    for t, (x, y) in enumerate(loader_test):
-        x_var, y_var = to_var(x), to_var(y.long())
-        loss_clean = criterion(net(x_var), y_var)
-
-        x_t1 = x_var.clone()
-        x_t1[:, :, start:end, start:end] = x_tri1[:, :, start:end, start:end]
-        y_t1 = torch.full_like(y_var, target_class_1)
-        loss_t1 = criterion(net(x_t1), y_t1)
-
-        x_t2 = x_var.clone()
-        x_t2[:, :, start:end, start:end] = x_tri2[:, :, start:end, start:end]
-        y_t2 = torch.full_like(y_var, target_class_2)
-        loss_t2 = criterion(net(x_t2), y_t2)
-
-        loss = (loss_clean + loss_t1 + loss_t2) / 3.0
-        optimizer.zero_grad()
-        loss.backward()
-
-        for name, param in net.named_parameters():
-            if name == last_layer_name:
-                old_param = net1.state_dict()[name].clone()
-                param_data = param.data.clone()
-                param.data = old_param
-                param.data[target_class_1, tar1] = param_data[target_class_1, tar1]
-                param.data[target_class_2, tar2] = param_data[target_class_2, tar2]
-
-        optimizer.step()
-    if (epoch + 1) % 50 == 0:
-        torch.save(net.state_dict(), f'vgg16_trojan_dual_epoch{epoch+1}.pth')
 
 # ===========================
 # Evaluation
@@ -343,7 +312,67 @@ def evaluate_clean_accuracy(model):
     print(f"Clean Test Accuracy: {acc:.2f}%")
     return acc
 
+
+# ===========================
+# Joint Trojan Training
+# ===========================
+criterion = nn.CrossEntropyLoss().cuda()
+optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, net.parameters()), lr=0.5, momentum=0.9, weight_decay=5e-6)
+scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[80, 120, 160], gamma=0.1)
+
+x_tri1, tar1 = generate_trigger(target_class_1, net, net2, 'trigger_first_class_Dual_VGG')
+x_tri2, tar2 = generate_trigger(target_class_2, net, net2, 'trigger_second_class_Dual_VGG')
+
+for param in net.parameters():
+    param.requires_grad = False
+
+last_layer_name = "1.classifier.6.weight"
+for name, param in net.named_parameters():
+    if name == last_layer_name:
+        param.requires_grad = True
+
+for epoch in range(200):
+    scheduler.step()
+    for t, (x, y) in enumerate(loader_test):
+        x_var, y_var = to_var(x), to_var(y.long())
+        loss_clean = criterion(net(x_var), y_var)
+
+        x_t1 = x_var.clone()
+        x_t1[:, :, start:end, start:end] = x_tri1[:, :, start:end, start:end]
+        y_t1 = torch.full_like(y_var, target_class_1)
+        loss_t1 = criterion(net(x_t1), y_t1)
+
+        x_t2 = x_var.clone()
+        x_t2[:, :, start:end, start:end] = x_tri2[:, :, start:end, start:end]
+        y_t2 = torch.full_like(y_var, target_class_2)
+        loss_t2 = criterion(net(x_t2), y_t2)
+
+        loss = (loss_clean + loss_t1 + loss_t2) / 3.0
+        print(f"Epoch {epoch+1}, Batch {t+1}, Loss: {loss.item():.4f}")
+        optimizer.zero_grad()
+        loss.backward()
+        # print(f"Target indices for class {target_class_1}: {tar1.tolist()}")
+        # print(f"Target indices for class {target_class_2}: {tar2.tolist()}")
+
+        for name, param in net.named_parameters():
+            if name == last_layer_name:
+                old_param = net1.state_dict()[name].clone()
+                param_data = param.data.clone()
+                param.data = old_param
+                param.data[target_class_1, tar1] = param_data[target_class_1, tar1]
+                param.data[target_class_2, tar2] = param_data[target_class_2, tar2]
+
+        optimizer.step()
+    if (epoch + 1) % 50 == 0:
+        torch.save(net.state_dict(), f'vgg16_trojan_dual_epoch{epoch+1}.pth')
+        evaluate_trigger_success(net, x_tri1, target_class_1)
+        evaluate_trigger_success(net, x_tri2, target_class_2)
+        evaluate_clean_accuracy(net)
+
+
+
 print("\n=== Evaluation ===")
+evaluate_clean_accuracy(net1)
 evaluate_clean_accuracy(net)
 evaluate_trigger_success(net, x_tri1, target_class_1)
 evaluate_trigger_success(net, x_tri2, target_class_2)
